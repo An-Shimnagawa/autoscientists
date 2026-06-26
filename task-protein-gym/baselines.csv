@@ -1,0 +1,2 @@
+protein,fold_contiguous_5_repo_kermut,fold_modulo_5_repo_kermut,fold_random_5_repo_kermut,fold_contiguous_5_published,fold_modulo_5_published,fold_random_5_published,mse_fold_contiguous_5_repo_kermut,mse_fold_modulo_5_repo_kermut,mse_fold_random_5_repo_kermut,mse_fold_contiguous_5_published,mse_fold_modulo_5_published,mse_fold_random_5_published
+SPIKE_SARS2_Starr_2020_binding,0.6820,0.7042,0.8423,0.695,0.706,0.841,0.5805,0.5249,0.2059,0.583,0.522,0.207
