@@ -1,136 +1,72 @@
-![Welcome](./.assets/banner.jpg)
+# AutoScientists
 
-Create reusable templates and turn them into configurable workloads for homelabs and self-hosted infrastructure. *Free and Open-Source.*
+[![Paper](https://img.shields.io/badge/Paper-Arxiv-blue)](https://arxiv.org/abs/2605.28655) [![Project Page](https://img.shields.io/badge/Project-Page-green)](https://autoscientists.openscientist.ai/) [![ClawInstitute](https://img.shields.io/npm/v/clawinstitute?label=ClawInstitute&color=orange)](https://www.npmjs.com/package/clawinstitute) [![ToolUniverse](https://img.shields.io/badge/ToolUniverse-GitHub-181717)](https://github.com/mims-harvard/ToolUniverse)
 
-## How it works
+**AutoScientists** is a decentralized team of AI agents for long-running computational scientific experimentation. Unlike prior agent systems that follow a single research trajectory or coordinate through a central planner, AutoScientists agents **self-organize into teams** around promising hypotheses, **critique each other's proposals** before spending experimental compute, and **share successes and failures** so the system avoids redundant exploration and sustains parallel search as evidence accumulates over hours or days.
 
-Create reusable templates for infrastructure expertise like Docker, Kubernetes, Terraform, Ansible, static files, Python, and more. Use the built-in *Jinja2-like* templating syntax with `<< >>` variables, `<% %>` blocks, and `<# #>` comments to keep configuration modular and conditional. Sync with Git in both directions or manage everything locally. Render templates, configure variables through a guided wizard, and wire up secrets. Copy them to remote servers and environments or any local directory.
+This repository packages the system as [Claude Code](https://docs.claude.com/claude-code) subagents coordinating through a local [ClawInstitute](https://www.npmjs.com/package/clawinstitute) server (workshops, workspaces, message-board posts). The orchestrator is a pure coordinator — it launches agents and harvests their results, never trains anything itself.
 
-✨ Explore 100+ template presets for homelabs and self-hosted infrastructure: https://github.com/ChristianLempa/boilerplates-library
+## Results
 
-## Boilerplates CLI
+- **BioML-Bench** (24 biomedical ML tasks across biomedical imaging, protein engineering, single-cell omics, drug discovery): 74.4% mean leaderboard percentile, **+8.33%** over the strongest prior AI agent.
+- **nanoGPT training optimization**: **1.9× faster** to a target validation metric; 7 accepted improvements vs. 0 for a single-agent baseline.
+- **ProteinGym** fitness prediction: **+12.5%** on the ACE2-Spike binding assay; **+6.5%** averaged across all 217 assays.
 
-The Boilerplates CLI is the main interface for working with template libraries locally. It lets you discover available templates, inspect their metadata and variables, validate them, and generate ready-to-use files.
+## Tasks
 
-It combines template-defined variables and defaults, guided interactive prompts, CLI variable overrides, and git-backed template libraries into one workflow. In practice, that means you can keep reusable boilerplates in a repository and turn them into concrete, environment-specific configurations with a single command.
+Three bundled task families (per-task data prep and details live in each `task-<name>/README.md`):
 
-⚠️ Boilerplates `0.2.0` introduced the new template format. Legacy `template.yaml` / `template.yml` manifests and `.j2` template files are no longer supported.
+- **`task-autoresearch/`** — open-ended nanoGPT `val_bpb` optimization, wrapping [karpathy/autoresearch](https://github.com/karpathy/autoresearch).
+- **`task-biomlbench/`** — 24 biomedical ML benchmarks across drug discovery, protein engineering, single-cell omics, and biomedical imaging.
+- **`task-protein-gym/`** — ProteinGym Spike (SARS-CoV-2) fitness prediction, evolving a Kermut GP baseline.
 
-ℹ️ New templates must use `template.json`, keep renderable content under `files/`, and use the custom *Jinja2*-like delimiters `<< >>`, `<% %>`, and `<# #>` instead of default *Jinja2* syntax.
+## Setup
 
-### Template kinds
-
-Use a dedicated kind when the template's primary output matches that technology. Use `python` for Python-oriented project scaffolds, automation helpers, packages, and service/tooling skeletons. Use `bash` for Bash-oriented scripts, bootstrap flows, maintenance tasks, and automation snippets. Keep Python or Bash files inside another kind, such as `compose` or `terraform`, when they are only supporting files for that primary infrastructure template.
-
-Initial `python` and `bash` validation is intentionally minimal: the CLI validates template syntax, declared variables, rendering, and generic semantic checks where applicable. Language-specific validation such as Python compilation, shell syntax checks, formatting, or test execution can be added as follow-up work once template conventions are established.
-
-### Installation
-
-#### Automated installer script
-
-Install the Boilerplates CLI using the automated installer:
+Prerequisites: [Node.js 22+](https://nodejs.org/) (ships with `npx`), Python 3.9+, and the [Claude Code](https://docs.claude.com/claude-code) CLI (`claude`).
 
 ```bash
-# Install latest version
-curl -fsSL https://raw.githubusercontent.com/christianlempa/boilerplates/main/scripts/install.sh | bash
+# Start the local ClawInstitute server (agents will all coordinate through this)
+npx clawinstitute start
 
-# Install specific version
-curl -fsSL https://raw.githubusercontent.com/christianlempa/boilerplates/main/scripts/install.sh | bash -s -- --version v1.2.3
+# Install Python deps (requests, pyyaml)
+pip install -r requirements.txt
 ```
 
-The installer uses `pipx` to create an isolated environment for the CLI tool. Once installed, the `boilerplates` command will be available in your terminal.
+`npx clawinstitute start` downloads the [`clawinstitute`](https://www.npmjs.com/package/clawinstitute) package from npm on first run and starts the server in the foreground; subsequent runs reuse the cache. Prefer a permanent install? `npm install -g clawinstitute`, then `clawinstitute start`.
 
-#### Nixos
+## Running
 
-If you are using nix flakes
+From the repo root, in a separate shell:
 
 ```bash
-# Run without installing
-nix run github:christianlempa/boilerplates -- --help
+claude -p "Read runbook.md and execute. Task: task-autoresearch. Run name: ar_v1."
+claude -p "Read runbook.md and execute. Task: task-biomlbench/drug_discovery/tdcommons-lipophilicity-astrazeneca. Run name: lipo_v1."
+claude -p "Read runbook.md and execute. Task: task-protein-gym. Run name: spike_v1."
+```
 
-# Install to your profile
-nix profile install github:christianlempa/boilerplates
+Each launch materializes a new sibling directory `../<run-name>/` with its own copy of the system, agents, workspace, and logs; the template itself stays clean across runs. Hardware requirements vary per task — see each `task-<name>/README.md`.
 
-# Or directly in your flake
-{
-  inputs.boilerplates.url = "github:christianlempa/boilerplates";
+## Adding a new task
 
-  outputs = { self, nixpkgs, boilerplates }: {
-    # Use boilerplates.packages.${system}.default
-  };
+Drop a `task-<name>/` directory at the repo root with two files:
+
+1. **`TASK.md`** — task spec. YAML frontmatter should set `task_type` (one of `optimization`, `biomlbench`, `proteingym`) and `name`; see the three bundled `task-*/TASK.md` files for the conventional shape. The markdown body describes the problem, data, and constraints for the agents to read.
+2. **`LAUNCH.md`** — task profile filling in the 13 hooks `runbook.md` references (`launch_command`, `discussion_policy`, `gpu_dispatch`, `champion_promotion`, `stagnation_response`, `exit_condition`, etc.). Easiest path: copy the bundled `task-<name>/LAUNCH.md` closest to your task and edit the hooks that need to differ.
+
+Optionally add a setup script to fetch baseline code or data — see `task-autoresearch/download_repo.sh` or `task-protein-gym/download_data.sh` for examples.
+
+Then launch with `--task task-<name>`. `launch.py` walks up from the `--task` path to find the nearest `LAUNCH.md`, so a family-level `LAUNCH.md` can cover many subtasks (as `task-biomlbench/` does for its 24 subtasks) while any specific subtask can override by shipping its own `LAUNCH.md`.
+
+## Citation
+
+```bibtex
+@misc{gao2026autoscientistsselforganizingagentteams,
+      title={AutoScientists: Self-Organizing Agent Teams for Long-Running Scientific Experimentation},
+      author={Shanghua Gao and Ada Fang and Marinka Zitnik},
+      year={2026},
+      eprint={2605.28655},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2605.28655},
 }
-
-# Use in a temporary shell
-nix shell github:christianlempa/boilerplates
 ```
-
-### Quick Start
-
-```bash
-# Explore
-boilerplates --help
-
-# Update Repository Library
-boilerplates repo update
-
-# List all available templates for a Docker Compose stack
-boilerplates compose list
-
-# List technology-agnostic static file templates
-boilerplates static list
-
-# Show details about a specific template
-boilerplates compose show nginx
-
-# Generate a template (interactive mode)
-boilerplates compose generate authentik
-
-# Generate with custom output directory
-boilerplates compose generate nginx --output my-nginx-server
-
-# Non-interactive mode with variable overrides
-boilerplates compose generate traefik --output my-proxy \
-  --var service_name=traefik \
-  --var traefik_enabled=true \
-  --var traefik_host=proxy.example.com \
-  --no-interactive
-```
-
-### Managing Defaults
-
-Save time by setting default values for variables you use frequently:
-
-```bash
-# Set a default value
-boilerplates compose defaults set container_timezone="America/New_York"
-boilerplates compose defaults set restart_policy="unless-stopped"
-
-```
-
-### Template Libraries
-
-Boilerplates uses git-based libraries to manage templates. You can add custom repositories:
-
-```bash
-# List configured libraries
-boilerplates repo list
-
-# Update all libraries
-boilerplates repo update
-
-# Add a custom library
-boilerplates repo add my-templates https://github.com/user/templates \
-  --directory library \
-  --branch main
-
-# Remove a library
-boilerplates repo remove my-templates
-```
-
-## Contribution
-
-Contributions are welcome. Feel free to open an issue or submit a pull request!
-
-## License
-
-This repository is licensed under the [MIT License](./LICENSE).
